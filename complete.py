@@ -78,6 +78,23 @@ def create_complete_search_query(compound_nouns):
 
 
 # 検索件数の取得
+def search_wikipedia_number(word):
+	search_url = "https://ja.wikipedia.org/w/api.php"
+	params = {
+		"format": "json",
+		"action": "query",
+		"list": "search",
+		"srsearch": word
+	}
+	response = requests.get(search_url, params=params)
+	response.raise_for_status()
+	try:
+		search_number = response.json()["query"]["searchinfo"]["totalhits"]
+	except:
+		search_number = 0
+	return search_number
+
+
 def search_google_number(word):
 	search_url = "https://www.googleapis.com/customsearch/v1"
 	params = {
@@ -111,6 +128,31 @@ def search_bing_number(word):
 
 
 # 複合名詞の検索件数リストを取得
+def get_search_numbers_list_wikipedia(fname, cn_query):
+	# 複合名詞の検索件数リスト
+	cn_search_numbers_list = []
+	for cn in cn_query:
+		# 元となる複合名詞のデータ構造
+		cn_search_numbers = {"text": cn[0], "search_number":"", "complete_search":[]}
+		# 検索件数の取得
+		cn_search_numbers["search_number"] = search_wikipedia_number("\"" + cn[0] + "\"")
+	
+		# 助詞補完した検索クエリの検索件数の取得
+		for word in cn[1:]:
+			# 助詞補完した検索クエリのデータ構造
+			cs = {"text": word, "search_number": ""}
+			# 検索件数の取得
+			cs["search_number"] = search_wikipedia_number("\"" + word + "\"")
+			cn_search_numbers["complete_search"].append(cs)
+	
+		cn_search_numbers_list.append(cn_search_numbers)
+	
+	with open("kaiseki_wikipedia_"+fname, "w") as f:
+		f.write(str(cn_search_numbers_list))
+
+	return cn_search_numbers_list
+
+
 def get_search_numbers_list_google(fname, cn_query):
 	# 複合名詞の検索件数リスト
 	cn_search_numbers_list = []
@@ -193,6 +235,8 @@ def replace_compound_nouns(fname, cn_serach_numbers_list):
 				replace_dict[origin_cn] = max_cn_search["text"]
 			else:
 				not_replace_dict[origin_cn] = cn_search_numbers["complete_search"][0:]
+		else:
+			not_replace_dict[origin_cn] = origin_sn
 
 	# 補完用語が他の置換対象に含まれるかチェック
 	for complete_word in replace_dict.values():
@@ -230,15 +274,17 @@ if __name__=="__main__":
 		words = create_complete_search_query(noun)
 		cn_query.append(words)
 
-	# 複合名詞の検索件数リストの作成、kaiseki_[google|bing]_fnameファイルに結果を格納
+	# 複合名詞の検索件数リストの作成、kaiseki_[wikipedia|google|bing]_fnameファイルに結果を格納
+	#cn_search_numbers_list = get_search_numbers_list_wikipedia(fname, cn_query)
 	#cn_search_numbers_list = get_search_numbers_list_google(fname, cn_query)
 	#cn_search_numbers_list = get_search_numbers_list_bing(fname, cn_query)
 
-	# kaiseki_[google|bing]_fnameファイルから複合名詞の検索件数リストの読み込み
+	# kaiseki_[wikipedia|google|bing]_fnameファイルから複合名詞の検索件数リストの読み込み
+	with open("kaiseki_wikipedia_"+fname, "r") as f:
 	#with open("kaiseki_google_"+fname, "r") as f:
-	with open("kaiseki_bing_"+fname, "r") as f:
-		cn_search_numbers_list = f.read()
-		cn_search_numbers_list = eval(cn_search_numbers_list)
+	#with open("kaiseki_bing_"+fname, "r") as f:
+	#	cn_search_numbers_list = f.read()
+	#	cn_search_numbers_list = eval(cn_search_numbers_list)
 	#print(cn_search_numbers_list)
 
 	# 複合名詞の置換、fname_replacedファイルに置換後の結果が出力される
