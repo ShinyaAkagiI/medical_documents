@@ -275,12 +275,12 @@ if __name__=="__main__":
 		cn_query.append(words)
 
 	# 複合名詞の検索件数リストの作成、kaiseki_[wikipedia|google|bing]_fnameファイルに結果を格納
-	#cn_search_numbers_list = get_search_numbers_list_wikipedia(fname, cn_query)
+	cn_search_numbers_list = get_search_numbers_list_wikipedia(fname, cn_query)
 	#cn_search_numbers_list = get_search_numbers_list_google(fname, cn_query)
 	#cn_search_numbers_list = get_search_numbers_list_bing(fname, cn_query)
 
 	# kaiseki_[wikipedia|google|bing]_fnameファイルから複合名詞の検索件数リストの読み込み
-	with open("kaiseki_wikipedia_"+fname, "r") as f:
+	#with open("kaiseki_wikipedia_"+fname, "r") as f:
 	#with open("kaiseki_google_"+fname, "r") as f:
 	#with open("kaiseki_bing_"+fname, "r") as f:
 	#	cn_search_numbers_list = f.read()
