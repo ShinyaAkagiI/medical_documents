@@ -8,9 +8,9 @@ tagger = MeCab.Tagger("-d /usr/local/lib/mecab/dic/mecab-ipadic-neologd")
 #tagger = MeCab.Tagger()
 
 # 検索件数取得用のAPIキー、カスタム検索エンジンID
-GOOGLE_API_KEY = "please_inter_your_api_key"
-GOOGLE_SEARCH_ENGINE_ID = "please_inter_your_search_engine_id"
-BING_API_KEY = "please_inter_your_api_key"
+GOOGLE_API_KEY = "please_input_your_api_key"
+GOOGLE_SEARCH_ENGINE_ID = "please_input_your_search_engine_id"
+BING_API_KEY = "please_input_your_api_key"
 
 
 # 複合名詞リストの取得
