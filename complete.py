@@ -2,20 +2,35 @@
 
 import MeCab
 import requests
+import time
 
 # mecab-ipadic-neologdを使用
-tagger = MeCab.Tagger("-d /usr/local/lib/mecab/dic/mecab-ipadic-neologd")
-#tagger = MeCab.Tagger()
+#tagger = MeCab.Tagger("-d /usr/local/lib/mecab/dic/mecab-ipadic-neologd")
+tagger = MeCab.Tagger()
 
 # 検索件数取得用のAPIキー、カスタム検索エンジンID
 GOOGLE_API_KEY = "please_input_your_api_key"
 GOOGLE_SEARCH_ENGINE_ID = "please_input_your_search_engine_id"
 BING_API_KEY = "please_input_your_api_key"
 
+# 分析ファイル
+dname = "kusurinoshiori_texts"
+fname= "オプジーボ"
+#fname= "イーケプラ"
+#fname = "シムビコート"
+#fname = "キイトルーダ"
+#fname = "アバスチン"
+#fname = "グラクティブ"
+#fname = "セレコックス"
+#fname = "プログラフ"
 
 # 複合名詞リストの取得
 def get_compound_nouns(text):
 	#text = text.replace(" ", "　")
+	text = text.replace("(", "（")
+	text = text.replace("[", "［")
+	text = text.replace(")", "）")
+	text = text.replace("]", "］")
 	#print(text)
 	node = tagger.parseToNode(text)
 	terms = []
@@ -38,7 +53,9 @@ def get_compound_nouns(text):
 		#print(term, pos1, pos2)
 	
 		if pos1 in ["名詞"] and prev_pos1 in ["名詞"]:
-			if pos2 in ["一般", "固有名詞", "サ変接続", "数"] and prev_pos2 in ["一般", "固有名詞", "サ変接続", "数"]:
+			if pos2 in ["一般", "固有名詞", "サ変接続"] and prev_pos2 in ["一般", "固有名詞", "サ変接続"]:
+			#if pos2 in ["一般", "固有名詞", "サ変接続", "数"] and prev_pos2 in ["一般", "固有名詞", "サ変接続", "数"]:
+			#if pos2 in ["一般", "固有名詞", "サ変接続", "接尾"] and prev_pos2 in ["一般", "固有名詞", "サ変接続", "接尾"]:
 			#if pos2 in ["一般", "固有名詞", "サ変接続", "形容動詞語幹"] and prev_pos2 in ["一般", "固有名詞", "サ変接続", "形容動詞語幹"]:
 				conj.append(count)
 		count += 1
@@ -57,6 +74,14 @@ def get_compound_nouns(text):
 	for i in range(0, len(i_terms), 2):
 		compound_nouns_list.append({"text":"".join(terms[i_terms[i]:i_terms[i+1]+1]),
 					    "morph":terms[i_terms[i]:i_terms[i+1]+1]})
+
+	compound_nouns_list2 = []
+	for c in compound_nouns_list:
+		#文頭または文末の形態素が１の複合名詞を除外
+		if len(c["morph"][0]) > 1 and len(c["morph"][-1]) > 1:
+		#文頭または文末の形態素が１、または、2つの形態素からなる複合名詞を除外
+		#if (len(c["morph"][0]) > 1 and len(c["morph"][-1]) > 1) or len(c["morph"]) > 2:
+			compound_nouns_list2.append(c)
 
 	return compound_nouns_list
 
@@ -92,6 +117,8 @@ def search_wikipedia_number(word):
 		search_number = response.json()["query"]["searchinfo"]["totalhits"]
 	except:
 		search_number = 0
+	#接続負荷を軽減するため待機
+	time.sleep(3)	
 	return search_number
 
 
@@ -108,6 +135,8 @@ def search_google_number(word):
 		search_number = response.json()["searchInformation"]["totalResults"]
 	except:
 		search_number = 0
+	#接続制限を回避するため待機
+	time.sleep(3)	
 	return search_number
 
 
@@ -124,6 +153,8 @@ def search_bing_number(word):
 		search_number = response.json()["webPages"]["totalEstimatedMatches"]
 	except:
 		search_number = 0
+	#接続制限を回避するため待機
+	time.sleep(3)
 	return search_number
 
 
@@ -144,7 +175,7 @@ def get_search_numbers_list_wikipedia(fname, cn_query):
 			# 検索件数の取得
 			cs["search_number"] = search_wikipedia_number("\"" + word + "\"")
 			cn_search_numbers["complete_search"].append(cs)
-	
+
 		cn_search_numbers_list.append(cn_search_numbers)
 	
 	with open("kaiseki_wikipedia_"+fname, "w") as f:
@@ -169,7 +200,7 @@ def get_search_numbers_list_google(fname, cn_query):
 			# 検索件数の取得
 			cs["search_number"] = search_google_number("\"" + word + "\"")
 			cn_search_numbers["complete_search"].append(cs)
-	
+
 		cn_search_numbers_list.append(cn_search_numbers)
 	
 	# 検索APIには無料枠のアクセス上限が設定されているため、結果はファイルに保存しておく
@@ -195,7 +226,7 @@ def get_search_numbers_list_bing(fname, cn_query):
 			# 検索件数の取得
 			cs["search_number"] = search_bing_number("\"" + word + "\"")
 			cn_search_numbers["complete_search"].append(cs)
-	
+
 		cn_search_numbers_list.append(cn_search_numbers)
 	
 	# 検索APIには無料枠のアクセス上限が設定されているため、結果はファイルに保存しておく
@@ -238,13 +269,16 @@ def replace_compound_nouns(fname, cn_serach_numbers_list):
 		else:
 			not_replace_dict[origin_cn] = origin_sn
 
-	# 補完用語が他の置換対象に含まれるかチェック
-	for complete_word in replace_dict.values():
-		if complete_word in replace_dict:
-			print("error:{} in replace_dict".format(complete_word))
+	# 置換用語に部分一致が存在するかチェック
+	#for w1 in replace_dict.keys():
+	#	for w2 in replace_dict.keys():
+	#		if w1 != w2 and w1 in w2:
+	#			print("error:{} is included {} in replace_dict".format(w1, w2))
 
 	# 置換
-	for replace_word in replace_dict.items():
+	# 文字列長が長いものから置換することで、置換用語に部分一致があっても問題なく置換できるようにする
+	sorted_replace_items = sorted(replace_dict.items(), key=lambda x:len(x[0]), reverse=True)
+	for replace_word in sorted_replace_items:
 		data = data.replace(replace_word[0], replace_word[1])
 
 	# 出力する文章
@@ -256,10 +290,6 @@ def replace_compound_nouns(fname, cn_serach_numbers_list):
 
 ### main ###
 if __name__=="__main__":
-	# 分析ファイル
-	dname = "kusurinoshiori_texts"
-	fname= "オプジーボ"
-
 	with open(dname+"/"+fname, "r") as f:
 		data = f.read()
 	cn_list = get_compound_nouns(data)
