@@ -24,6 +24,18 @@ fname= "オプジーボ"
 #fname = "セレコックス"
 #fname = "プログラフ"
 
+#kaiseki = "kaiseki_wikipedia_nonum_suffix"
+kaiseki = "kaiseki_google_nonum_suffix4"
+#kaiseki = "kaiseki_bing_"
+
+#分析手法
+#method = "nonum"
+#method = "suffix"
+#method = "suffix2"
+#method = "suffix3"
+method = "suffix4"
+#method = "num"
+
 # 複合名詞リストの取得
 def get_compound_nouns(text):
 	#text = text.replace(" ", "　")
@@ -34,6 +46,7 @@ def get_compound_nouns(text):
 	#print(text)
 	node = tagger.parseToNode(text)
 	terms = []
+	terms_suffix = []
 
 	# 複合名詞の接続箇所の取得
 	conj = []
@@ -50,14 +63,23 @@ def get_compound_nouns(text):
 		prev_pos1 = node.prev.feature.split(",")[0]
 		prev_pos2 = node.prev.feature.split(",")[1]
 
+		terms_suffix.append(pos2)
+		
 		#print(term, pos1, pos2)
 	
 		if pos1 in ["名詞"] and prev_pos1 in ["名詞"]:
-			if pos2 in ["一般", "固有名詞", "サ変接続"] and prev_pos2 in ["一般", "固有名詞", "サ変接続"]:
-			#if pos2 in ["一般", "固有名詞", "サ変接続", "数"] and prev_pos2 in ["一般", "固有名詞", "サ変接続", "数"]:
-			#if pos2 in ["一般", "固有名詞", "サ変接続", "接尾"] and prev_pos2 in ["一般", "固有名詞", "サ変接続", "接尾"]:
-			#if pos2 in ["一般", "固有名詞", "サ変接続", "形容動詞語幹"] and prev_pos2 in ["一般", "固有名詞", "サ変接続", "形容動詞語幹"]:
-				conj.append(count)
+			if method == "nonum":
+				if pos2 in ["一般", "固有名詞", "サ変接続"] and prev_pos2 in ["一般", "固有名詞", "サ変接続"]:
+					conj.append(count)
+			elif method == "num":
+				if pos2 in ["一般", "固有名詞", "サ変接続", "数"] and prev_pos2 in ["一般", "固有名詞", "サ変接続", "数"]:
+					conj.append(count)
+			elif method in ["suffix", "suffix2", "suffix3", "suffix4"]:
+				if pos2 in ["一般", "固有名詞", "サ変接続", "接尾"] and prev_pos2 in ["一般", "固有名詞", "サ変接続", "接尾"]:
+					conj.append(count)
+			#elif method == "":
+			#	if pos2 in ["一般", "固有名詞", "サ変接続", "形容動詞語幹"] and prev_pos2 in ["一般", "固有名詞", "サ変接続", "形容動詞語幹"]:
+			#		conj.append(count)
 		count += 1
 		node = node.next
 
@@ -72,18 +94,32 @@ def get_compound_nouns(text):
 	# 複合名詞リストの作成
 	compound_nouns_list = []
 	for i in range(0, len(i_terms), 2):
-		compound_nouns_list.append({"text":"".join(terms[i_terms[i]:i_terms[i+1]+1]),
-					    "morph":terms[i_terms[i]:i_terms[i+1]+1]})
+		if method == "suffix4":
+			#先頭と末尾が接尾からなる複合名詞を除外
+			if terms_suffix[i_terms[i]] == "接尾" and terms_suffix[i_terms[i+1]] == "接尾":
+				pass
+			else:
+				compound_nouns_list.append({"text":"".join(terms[i_terms[i]:i_terms[i+1]+1]),
+							    "morph":terms[i_terms[i]:i_terms[i+1]+1]})
+		else:
+			compound_nouns_list.append({"text":"".join(terms[i_terms[i]:i_terms[i+1]+1]),
+						    "morph":terms[i_terms[i]:i_terms[i+1]+1]})
 
 	compound_nouns_list2 = []
 	for c in compound_nouns_list:
-		#文頭または文末の形態素が１の複合名詞を除外
-		if len(c["morph"][0]) > 1 and len(c["morph"][-1]) > 1:
-		#文頭または文末の形態素が１、または、2つの形態素からなる複合名詞を除外
-		#if (len(c["morph"][0]) > 1 and len(c["morph"][-1]) > 1) or len(c["morph"]) > 2:
-			compound_nouns_list2.append(c)
+		if method == "suffix2":
+			#文頭または文末の形態素が１の複合名詞を除外
+			if len(c["morph"][0]) > 1 and len(c["morph"][-1]) > 1:
+				compound_nouns_list2.append(c)
+		elif method in ["suffix3", "suffix4"]:
+			#文頭または文末の形態素が１、または、２つの形態素からなる複合名詞を除外
+			if (len(c["morph"][0]) > 1 and len(c["morph"][-1]) > 1) or len(c["morph"]) > 2:
+				compound_nouns_list2.append(c)
 
-	return compound_nouns_list
+	if method in ["suffix2", "suffix3", "suffix4"]:
+		return compound_nouns_list2
+	else:
+		return compound_nouns_list
 
 
 #助詞を補完した検索クエリリストを作成
@@ -104,6 +140,14 @@ def create_complete_search_query(compound_nouns):
 
 # 検索件数の取得
 def search_wikipedia_number(word):
+	#辞書データを探索
+	with open("database_wikipedia_search_numbers", "r") as f:
+		data = f.read()
+		data = eval(data)
+
+	if word in data.keys():
+		return data[word]
+
 	search_url = "https://ja.wikipedia.org/w/api.php"
 	params = {
 		"format": "json",
@@ -117,12 +161,26 @@ def search_wikipedia_number(word):
 		search_number = response.json()["query"]["searchinfo"]["totalhits"]
 	except:
 		search_number = 0
+
+	with open("database_wikipedia_search_numbers", "w") as f:
+		data[word] = search_number
+		f.write(str(data))
+
 	#接続負荷を軽減するため待機
-	time.sleep(3)	
+	time.sleep(3)
+
 	return search_number
 
 
 def search_google_number(word):
+	#辞書データを探索
+	with open("database_google_search_numbers", "r") as f:
+		data = f.read()
+		data = eval(data)
+
+	if word in data.keys():
+		return data[word]
+
 	search_url = "https://www.googleapis.com/customsearch/v1"
 	params = {
 		"key": GOOGLE_API_KEY,
@@ -135,12 +193,26 @@ def search_google_number(word):
 		search_number = response.json()["searchInformation"]["totalResults"]
 	except:
 		search_number = 0
+
+	with open("database_google_search_numbers", "w") as f:
+		data[word] = search_number
+		f.write(str(data))
+
 	#接続制限を回避するため待機
-	time.sleep(3)	
+	time.sleep(3)
+
 	return search_number
 
 
 def search_bing_number(word):
+	#辞書データを探索
+	with open("database_bing_search_numbers", "r") as f:
+		data = f.read()
+		data = eval(data)
+
+	if word in data.keys():
+		return data[word]
+
 	search_url = "https://api.bing.microsoft.com/v7.0/search"
 	headers = {"Ocp-Apim-Subscription-Key": BING_API_KEY}
 	params = {
@@ -153,8 +225,14 @@ def search_bing_number(word):
 		search_number = response.json()["webPages"]["totalEstimatedMatches"]
 	except:
 		search_number = 0
+
+	with open("database_bing_search_numbers", "w") as f:
+		data[word] = search_number
+		f.write(str(data))
+
 	#接続制限を回避するため待機
 	time.sleep(3)
+
 	return search_number
 
 
@@ -259,7 +337,7 @@ def replace_compound_nouns(fname, cn_serach_numbers_list):
 		
 		if int(origin_sn) > 0:
 			#補完用語のうち検索件数が最大のものを取得
-			max_cn_search = max(cn_search_numbers["complete_search"], key=lambda x:x["search_number"])
+			max_cn_search = max(cn_search_numbers["complete_search"], key=lambda x:int(x["search_number"]))
 			#検索件数が最大の補完用語で置換
 			if int(max_cn_search["search_number"]) > 0:
 				replace_count += 1
@@ -310,9 +388,7 @@ if __name__=="__main__":
 	#cn_search_numbers_list = get_search_numbers_list_bing(fname, cn_query)
 
 	# kaiseki_[wikipedia|google|bing]_fnameファイルから複合名詞の検索件数リストの読み込み
-	#with open("kaiseki_wikipedia_"+fname, "r") as f:
-	#with open("kaiseki_google_"+fname, "r") as f:
-	#with open("kaiseki_bing_"+fname, "r") as f:
+	#with open(kaiseki+"_"+fname, "r") as f:
 	#	cn_search_numbers_list = f.read()
 	#	cn_search_numbers_list = eval(cn_search_numbers_list)
 	#print(cn_search_numbers_list)
