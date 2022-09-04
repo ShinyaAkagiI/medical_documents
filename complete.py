@@ -24,16 +24,18 @@ fname= "オプジーボ"
 #fname = "セレコックス"
 #fname = "プログラフ"
 
-#kaiseki = "kaiseki_wikipedia_nonum_suffix"
-kaiseki = "kaiseki_google_nonum_suffix4"
-#kaiseki = "kaiseki_bing_"
+kaiseki = "kaiseki_wikipedia_nonum_suffix6"
+#kaiseki = "kaiseki_google_nonum_suffix6"
+#kaiseki = "kaiseki_bing_nonum_suffix6"
 
 #分析手法
 #method = "nonum"
 #method = "suffix"
 #method = "suffix2"
 #method = "suffix3"
-method = "suffix4"
+#method = "suffix4"
+#method = "suffix5"
+method = "suffix6"
 #method = "num"
 
 # 複合名詞リストの取得
@@ -74,7 +76,7 @@ def get_compound_nouns(text):
 			elif method == "num":
 				if pos2 in ["一般", "固有名詞", "サ変接続", "数"] and prev_pos2 in ["一般", "固有名詞", "サ変接続", "数"]:
 					conj.append(count)
-			elif method in ["suffix", "suffix2", "suffix3", "suffix4"]:
+			elif method in ["suffix", "suffix2", "suffix3", "suffix4", "suffix5", "suffix6"]:
 				if pos2 in ["一般", "固有名詞", "サ変接続", "接尾"] and prev_pos2 in ["一般", "固有名詞", "サ変接続", "接尾"]:
 					conj.append(count)
 			#elif method == "":
@@ -115,8 +117,16 @@ def get_compound_nouns(text):
 			#文頭または文末の形態素が１、または、２つの形態素からなる複合名詞を除外
 			if (len(c["morph"][0]) > 1 and len(c["morph"][-1]) > 1) or len(c["morph"]) > 2:
 				compound_nouns_list2.append(c)
+		elif method in ["suffix5"]:
+			#文頭または文末の形態素が１、または、３つの形態素からなる複合名詞を除外
+			if (len(c["morph"][0]) > 1 and len(c["morph"][-1]) > 1) or len(c["morph"]) > 3:
+				compound_nouns_list2.append(c)
+		elif method in ["suffix6"]:
+			#文頭または文末の形態素が１、または、３つの形態素からなる複合名詞を除外し、かつ、『-』『/』を含む複合名詞を除外
+			if ((len(c["morph"][0]) > 1 and len(c["morph"][-1]) > 1) or (len(c["morph"]) > 3)) and ("-" not in c["text"]) and ("/" not in c["text"]):
+				compound_nouns_list2.append(c)
 
-	if method in ["suffix2", "suffix3", "suffix4"]:
+	if method in ["suffix2", "suffix3", "suffix4", "suffix5", "suffix6"]:
 		return compound_nouns_list2
 	else:
 		return compound_nouns_list
@@ -256,7 +266,7 @@ def get_search_numbers_list_wikipedia(fname, cn_query):
 
 		cn_search_numbers_list.append(cn_search_numbers)
 	
-	with open("kaiseki_wikipedia_"+fname, "w") as f:
+	with open(kaiseki+"_"+fname, "w") as f:
 		f.write(str(cn_search_numbers_list))
 
 	return cn_search_numbers_list
@@ -282,7 +292,7 @@ def get_search_numbers_list_google(fname, cn_query):
 		cn_search_numbers_list.append(cn_search_numbers)
 	
 	# 検索APIには無料枠のアクセス上限が設定されているため、結果はファイルに保存しておく
-	with open("kaiseki_google_"+fname, "w") as f:
+	with open(kaiseki+"_"+fname, "w") as f:
 		f.write(str(cn_search_numbers_list))
 
 	return cn_search_numbers_list
@@ -308,7 +318,7 @@ def get_search_numbers_list_bing(fname, cn_query):
 		cn_search_numbers_list.append(cn_search_numbers)
 	
 	# 検索APIには無料枠のアクセス上限が設定されているため、結果はファイルに保存しておく
-	with open("kaiseki_bing_"+fname, "w") as f:
+	with open(kaiseki+"_"+fname, "w") as f:
 		f.write(str(cn_search_numbers_list))
 
 	return cn_search_numbers_list
